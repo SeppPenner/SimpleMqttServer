@@ -31,7 +31,7 @@ namespace SimpleMqttServer
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Debug()
                 .WriteTo.File(Path.Combine(currentPath,
-                    @"log\NetCoreMQTTExampleJsonConfig_.txt"), rollingInterval: RollingInterval.Day)
+                    @"log\SimpleMqttServer_.txt"), rollingInterval: RollingInterval.Day)
                 .WriteTo.Console()
                 .CreateLogger();
 
