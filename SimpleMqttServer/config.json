@@ -3,7 +3,6 @@
   "Users": [
     {
       "UserName": "Hans",
-      "ClientId": "Hans",
       "Password": "Test"
     }
   ]

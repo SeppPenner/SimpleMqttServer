@@ -17,7 +17,6 @@ SimpleMqttServer is a project to run a simple [MQTT server](https://github.com/c
   "Users": [
     {
       "UserName": "Hans",
-      "ClientId": "Hans",
       "Password": "Test"
     }
   ]
