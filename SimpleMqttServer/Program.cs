@@ -1,17 +1,29 @@
-using System;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using MQTTnet;
-using MQTTnet.Protocol;
-using MQTTnet.Server;
-using Newtonsoft.Json;
-using Serilog;
+// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="Program.cs" company="Haemmer Electronics">
+//   Copyright (c) 2020 All rights reserved.
+// </copyright>
+// <summary>
+//   The main program.
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
 
 namespace SimpleMqttServer
 {
+    using System;
+    using System.Diagnostics.CodeAnalysis;
+    using System.IO;
+    using System.Linq;
+    using System.Reflection;
+    using System.Text;
+
+    using MQTTnet;
+    using MQTTnet.Protocol;
+    using MQTTnet.Server;
+
+    using Newtonsoft.Json;
+
+    using Serilog;
+
     /// <summary>
     ///     The main program.
     /// </summary>
@@ -30,6 +42,7 @@ namespace SimpleMqttServer
 
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Debug()
+                // ReSharper disable once AssignNullToNotNullAttribute
                 .WriteTo.File(Path.Combine(currentPath,
                     @"log\SimpleMqttServer_.txt"), rollingInterval: RollingInterval.Day)
                 .WriteTo.Console()
