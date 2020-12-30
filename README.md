@@ -1,7 +1,7 @@
 SimpleMqttServer
 ====================================
 
-SimpleMqttServer is a project to run a simple [MQTT server](https://github.com/chkr1011/MQTTnet) from a json config file. The project was written and tested in .NetCore 3.1.
+SimpleMqttServer is a project to run a simple [MQTT server](https://github.com/chkr1011/MQTTnet) from a json config file. The project was written and tested in .Net 5.0.
 
 [![Build status](https://ci.appveyor.com/api/projects/status/2a230fy5u5x502tx?svg=true)](https://ci.appveyor.com/project/SeppPenner/simplemqttserver)
 [![GitHub issues](https://img.shields.io/github/issues/SeppPenner/SimpleMqttServer.svg)](https://github.com/SeppPenner/SimpleMqttServer/issues)
@@ -26,4 +26,4 @@ SimpleMqttServer is a project to run a simple [MQTT server](https://github.com/c
 Change history
 --------------
 
-* **Version 1.0.0.0 (2020-02-13)** : 1.0 release.
+See the [Changelog](https://github.com/SeppPenner/SimpleMqttServer/blob/master/Changelog.md).
