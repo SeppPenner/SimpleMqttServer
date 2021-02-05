@@ -10,7 +10,7 @@ SimpleMqttServer is a project to run a simple [MQTT server](https://github.com/c
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://raw.githubusercontent.com/SeppPenner/SimpleMqttServer/master/License.txt)
 [![Known Vulnerabilities](https://snyk.io/test/github/SeppPenner/SimpleMqttServer/badge.svg)](https://snyk.io/test/github/SeppPenner/SimpleMqttServer)
 
-# JSON configuration (Adjust this to your needs):
+# JSON configuration (Adjust this to your needs)
 ```json
 {
   "Port": 1883,
