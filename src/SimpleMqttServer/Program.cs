@@ -15,7 +15,7 @@ namespace SimpleMqttServer
     using System.Linq;
     using System.Reflection;
     using System.Text;
-
+    using System.Threading;
     using MQTTnet;
     using MQTTnet.Protocol;
     using MQTTnet.Server;
@@ -44,7 +44,7 @@ namespace SimpleMqttServer
         public static void Main()
         {
             var currentPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
+            var wait = new ManualResetEvent(false);
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Debug()
                 // ReSharper disable once AssignNullToNotNullAttribute
@@ -98,7 +98,8 @@ namespace SimpleMqttServer
 
             var mqttServer = new MqttFactory().CreateMqttServer();
             mqttServer.StartAsync(optionsBuilder.Build());
-            Console.ReadLine();
+            Console.WriteLine("Press Ctrl+C to exit");
+            wait.WaitOne();
         }
 
         /// <summary>
