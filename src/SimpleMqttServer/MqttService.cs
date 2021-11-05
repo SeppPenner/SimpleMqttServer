@@ -103,7 +103,10 @@ namespace SimpleMqttServer
         private void StartMqttServer()
         {
             var optionsBuilder = new MqttServerOptionsBuilder()
-                .WithDefaultEndpoint().WithDefaultEndpointPort(this.MqttServiceConfiguration.Port).WithConnectionValidator(
+                .WithDefaultEndpoint()
+                .WithDefaultEndpointPort(this.MqttServiceConfiguration.Port)
+                .WithEncryptedEndpointPort(this.MqttServiceConfiguration.TlsPort)
+                .WithConnectionValidator(
                     c =>
                     {
                         var currentUser = this.MqttServiceConfiguration.Users.FirstOrDefault(u => u.UserName == c.Username);

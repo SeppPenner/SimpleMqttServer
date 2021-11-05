@@ -21,7 +21,7 @@ namespace SimpleMqttServer
         /// <summary>
         ///     Gets or sets the port.
         /// </summary>
-        public int Port { get; set; }
+        public int Port { get; set; } = 1883;
 
         /// <summary>
         ///     Gets or sets the list of valid users.
@@ -32,6 +32,11 @@ namespace SimpleMqttServer
         /// Gets or sets the heartbeat delay in milliseconds.
         /// </summary>
         public int DelayInMilliSeconds { get; set; } = 30000;
+
+        /// <summary>
+        /// Gets or sets the TLS port.
+        /// </summary>
+        public int TlsPort { get; set; } = 8883;
 
         /// <summary>
         /// Checks whether the configuration is valid or not.
@@ -52,6 +57,11 @@ namespace SimpleMqttServer
             if (this.DelayInMilliSeconds <= 0)
             {
                 throw new Exception("The heartbeat delay is invalid");
+            }
+
+            if (this.TlsPort is <= 0 or > 65535)
+            {
+                throw new Exception("The TLS port is invalid");
             }
 
             return true;
