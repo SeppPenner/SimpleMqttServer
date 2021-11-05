@@ -10,192 +10,131 @@
 namespace SimpleMqttServer
 {
     using System;
-    using System.Diagnostics.CodeAnalysis;
     using System.IO;
-    using System.Linq;
     using System.Reflection;
-    using System.Text;
-
-    using MQTTnet;
-    using MQTTnet.Protocol;
-    using MQTTnet.Server;
-
-    using Newtonsoft.Json;
-
+    using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Hosting;
+    using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.Hosting;
     using Serilog;
+    using Serilog.Events;
+    using Serilog.Exceptions;
 
     /// <summary>
-    ///     The main program.
+    /// The main program.
     /// </summary>
     public class Program
     {
         /// <summary>
-        /// The logger.
+        /// The configuration.
         /// </summary>
-        private static readonly ILogger Logger = Log.ForContext<Program>();
+        private static IConfigurationRoot? config;
 
         /// <summary>
-        ///     The main method that starts the service.
+        /// Gets the environment name.
         /// </summary>
-        [SuppressMessage(
-            "StyleCop.CSharp.DocumentationRules",
-            "SA1650:ElementDocumentationMustBeSpelledCorrectly",
-            Justification = "Reviewed. Suppression is OK here.")]
-        public static void Main()
+        public static string EnvironmentName => Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+
+        /// <summary>
+        /// Gets or sets the MQTT service configuration.
+        /// </summary>
+        public static MqttServiceConfiguration Configuration { get; set; } = new();
+
+        /// <summary>
+        /// The service name.
+        /// </summary>
+        public static AssemblyName ServiceName => Assembly.GetExecutingAssembly().GetName();
+
+        /// <summary>
+        /// The main method.
+        /// </summary>
+        /// <param name="args">Some arguments.</param>
+        /// <returns>The result code.</returns>
+        public static async Task<int> Main(string[] args)
         {
-            var currentPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            ReadConfiguration();
+            SetupLogging();
 
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                // ReSharper disable once AssignNullToNotNullAttribute
-                .WriteTo.File(Path.Combine(currentPath,
-                    @"log\SimpleMqttServer_.txt"), rollingInterval: RollingInterval.Day)
-                .WriteTo.Console()
-                .CreateLogger();
+            try
+            {
+                Log.Information("Starting {ServiceName}, Version {Version}...", ServiceName.Name, ServiceName.Version);
+                var currentLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                await CreateHostBuilder(args, currentLocation!).Build().RunAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Host terminated unexpectedly.");
+                return 1;
+            }
+            finally
+            {
+                Log.CloseAndFlush();
+            }
 
-            var config = ReadConfiguration(currentPath);
-
-            var optionsBuilder = new MqttServerOptionsBuilder()
-                .WithDefaultEndpoint().WithDefaultEndpointPort(config.Port).WithConnectionValidator(
-                    c =>
-                    {
-                        var currentUser = config.Users.FirstOrDefault(u => u.UserName == c.Username);
-
-                        if (currentUser == null)
-                        {
-                            c.ReasonCode = MqttConnectReasonCode.BadUserNameOrPassword;
-                            LogMessage(c, true);
-                            return;
-                        }
-
-                        if (c.Username != currentUser.UserName)
-                        {
-                            c.ReasonCode = MqttConnectReasonCode.BadUserNameOrPassword;
-                            LogMessage(c, true);
-                            return;
-                        }
-
-                        if (c.Password != currentUser.Password)
-                        {
-                            c.ReasonCode = MqttConnectReasonCode.BadUserNameOrPassword;
-                            LogMessage(c, true);
-                            return;
-                        }
-
-                        c.ReasonCode = MqttConnectReasonCode.Success;
-                        LogMessage(c, false);
-                    }).WithSubscriptionInterceptor(
-                    c =>
-                    {
-                        c.AcceptSubscription = true;
-                        LogMessage(c, true);
-                    }).WithApplicationMessageInterceptor(
-                    c =>
-                    {
-                        c.AcceptPublish = true;
-                        LogMessage(c);
-                    });
-
-            var mqttServer = new MqttFactory().CreateMqttServer();
-            mqttServer.StartAsync(optionsBuilder.Build());
-            Console.ReadLine();
+            return 0;
         }
 
         /// <summary>
-        ///     Reads the configuration.
+        /// Creates the host builder.
         /// </summary>
-        /// <param name="currentPath">The current path.</param>
-        /// <returns>A <see cref="Config" /> object.</returns>
-        private static Config ReadConfiguration(string currentPath)
+        /// <param name="args">The arguments.</param>
+        /// <param name="currentLocation">The current assembly location.</param>
+        /// <returns>A new <see cref="IHostBuilder"/>.</returns>
+        private static IHostBuilder CreateHostBuilder(string[] args, string currentLocation) =>
+            Host.CreateDefaultBuilder(args).ConfigureWebHostDefaults(
+                    webBuilder =>
+                    {
+                        webBuilder.UseSerilog();
+                        webBuilder.UseContentRoot(currentLocation);
+                        webBuilder.UseStartup<Startup>();
+                    })
+                .UseSerilog()
+                .UseWindowsService()
+                .UseSystemd();
+
+        /// <summary>
+        /// Reads the configuration.
+        /// </summary>
+        private static void ReadConfiguration()
         {
-            var filePath = $"{currentPath}\\config.json";
+            var configurationBuilder = new ConfigurationBuilder();
+            configurationBuilder.AddJsonFile("appsettings.json", false, true);
 
-            Config config = null;
-
-            // ReSharper disable once InvertIf
-            if (File.Exists(filePath))
+            if (!string.IsNullOrWhiteSpace(EnvironmentName))
             {
-                using var r = new StreamReader(filePath);
-                var json = r.ReadToEnd();
-                config = JsonConvert.DeserializeObject<Config>(json);
+                var appsettingsFileName = $"appsettings.{EnvironmentName}.json";
+
+                if (File.Exists(appsettingsFileName))
+                {
+                    configurationBuilder.AddJsonFile(appsettingsFileName, false, true);
+                }
             }
 
-            return config;
-        }
-
-        /// <summary> 
-        ///     Logs the message from the MQTT subscription interceptor context. 
-        /// </summary> 
-        /// <param name="context">The MQTT subscription interceptor context.</param> 
-        /// <param name="successful">A <see cref="bool"/> value indicating whether the subscription was successful or not.</param> 
-        private static void LogMessage(MqttSubscriptionInterceptorContext context, bool successful)
-        {
-            if (context == null)
-            {
-                return;
-            }
-
-            Logger.Information(
-                successful
-                    ? "New subscription: ClientId = {clientId}, TopicFilter = {topicFilter}"
-                    : "Subscription failed for clientId = {clientId}, TopicFilter = {topicFilter}",
-                context.ClientId,
-                context.TopicFilter);
+            config = configurationBuilder.Build();
+            config.Bind(ServiceName.Name, Configuration);
         }
 
         /// <summary>
-        ///     Logs the message from the MQTT message interceptor context.
+        /// Setup the logging.
         /// </summary>
-        /// <param name="context">The MQTT message interceptor context.</param>
-        private static void LogMessage(MqttApplicationMessageInterceptorContext context)
+        private static void SetupLogging()
         {
-            if (context == null)
+            var loggerConfiguration = new LoggerConfiguration()
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                .Enrich.FromLogContext()
+                .Enrich.WithExceptionDetails()
+                .Enrich.WithMachineName()
+                .WriteTo.Console();
+
+            if (EnvironmentName != "Development")
             {
-                return;
+                loggerConfiguration
+                    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                    .MinimumLevel.Override("Orleans", LogEventLevel.Information)
+                    .MinimumLevel.Information();
             }
 
-            var payload = context.ApplicationMessage?.Payload == null ? null : Encoding.UTF8.GetString(context.ApplicationMessage?.Payload);
-
-            Logger.Information(
-                "Message: ClientId = {clientId}, Topic = {topic}, Payload = {payload}, QoS = {qos}, Retain-Flag = {retainFlag}",
-                context.ClientId,
-                context.ApplicationMessage?.Topic,
-                payload,
-                context.ApplicationMessage?.QualityOfServiceLevel,
-                context.ApplicationMessage?.Retain);
-        }
-
-        /// <summary> 
-        ///     Logs the message from the MQTT connection validation context. 
-        /// </summary> 
-        /// <param name="context">The MQTT connection validation context.</param> 
-        /// <param name="showPassword">A <see cref="bool"/> value indicating whether the password is written to the log or not.</param> 
-        private static void LogMessage(MqttConnectionValidatorContext context, bool showPassword)
-        {
-            if (context == null)
-            {
-                return;
-            }
-
-            if (showPassword)
-            {
-                Logger.Information(
-                    "New connection: ClientId = {clientId}, Endpoint = {endpoint}, Username = {userName}, Password = {password}, CleanSession = {cleanSession}",
-                    context.ClientId,
-                    context.Endpoint,
-                    context.Username,
-                    context.Password,
-                    context.CleanSession);
-            }
-            else
-            {
-                Logger.Information(
-                    "New connection: ClientId = {clientId}, Endpoint = {endpoint}, Username = {userName}, CleanSession = {cleanSession}",
-                    context.ClientId,
-                    context.Endpoint,
-                    context.Username,
-                    context.CleanSession);
-            }
+            Log.Logger = loggerConfiguration.CreateLogger();
         }
     }
 }
