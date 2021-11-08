@@ -13,13 +13,18 @@ SimpleMqttServer is a project to run a simple [MQTT server](https://github.com/c
 # JSON configuration (Adjust this to your needs)
 ```json
 {
-  "Port": 1883,
-  "Users": [
-    {
-      "UserName": "Hans",
-      "Password": "Test"
+    "AllowedHosts": "*",
+    "SimpleMqttServer": {
+        "Port": 1883,
+        "Users": [
+            {
+                "UserName": "Hans",
+                "Password": "Test"
+            }
+        ],
+        "DelayInMilliSeconds": 30000,
+        "TlsPort":  8883 
     }
-  ]
 }
 ```
 
