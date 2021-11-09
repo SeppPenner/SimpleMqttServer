@@ -12,8 +12,8 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="5.0.1" />
-        <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="5.0.1" />
+        <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="6.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="6.0.0" />
         <PackageReference Include="MQTTnet" Version="3.0.16" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
         <PackageReference Include="Serilog" Version="2.10.0" />
