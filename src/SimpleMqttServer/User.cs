@@ -3,14 +3,14 @@
 //   Copyright (c) 2020 All rights reserved.
 // </copyright>
 // <summary>
-//   The <see cref="User" /> read from the config.json file.
+//   The <see cref="User" /> read from the configuration file.
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
 namespace SimpleMqttServer
 {
     /// <summary>
-    ///     The <see cref="User" /> read from the config.json file.
+    ///     The <see cref="User" /> read from the configuration file.
     /// </summary>
     public class User
     {
