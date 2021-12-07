@@ -9,6 +9,9 @@ SimpleMqttServer is a project to run a simple [MQTT server](https://github.com/c
 [![GitHub stars](https://img.shields.io/github/stars/SeppPenner/SimpleMqttServer.svg)](https://github.com/SeppPenner/SimpleMqttServer/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://raw.githubusercontent.com/SeppPenner/SimpleMqttServer/master/License.txt)
 [![Known Vulnerabilities](https://snyk.io/test/github/SeppPenner/SimpleMqttServer/badge.svg)](https://snyk.io/test/github/SeppPenner/SimpleMqttServer)
+[![Docker Pulls](https://img.shields.io/docker/pulls/sepppenner/simplemqttserver)](https://hub.docker.com/repository/docker/sepppenner/simplemqttserver)
+[![Docker Image Size (latest by date)](https://img.shields.io/docker/image-size/sepppenner/simplemqttserver?sort=date)](https://hub.docker.com/repository/docker/sepppenner/simplemqttserver)
+[![Docker Stars](https://img.shields.io/docker/stars/sepppenner/simplemqttserver)](https://hub.docker.com/repository/docker/sepppenner/simplemqttserver)
 
 # JSON configuration (Adjust this to your needs)
 ```json
