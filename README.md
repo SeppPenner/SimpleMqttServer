@@ -80,7 +80,7 @@ Docker (ARM):
     docker run -d --name="simplemqttserver" -p 1883:1883 -p 8883:8883 -v "/home/appsettings.json:/app/appsettings.json" --restart=always dockerhubuser/simplemqttserver:1.0.2
     ```
 
-6. Check the status of all containers running (MUst be root)
+6. Check the status of all containers running (Must be root)
     ```bash
     docker ps -a
     ```
