@@ -1,4 +1,4 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="Startup.cs" company="Hämmer Electronics">
 //   Copyright (c) 2020 All rights reserved.
 // </copyright>
@@ -7,74 +7,65 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace SimpleMqttServer
+namespace SimpleMqttServer;
+
+/// <summary>
+/// The startup class.
+/// </summary>
+public class Startup
 {
-    using System.Reflection;
-    using Microsoft.AspNetCore.Builder;
-    using Microsoft.AspNetCore.Hosting;
-    using Microsoft.Extensions.Configuration;
-    using Microsoft.Extensions.DependencyInjection;
-    using Microsoft.Extensions.Hosting;
-    using Serilog;
+    /// <summary>
+    /// The service name.
+    /// </summary>
+    private readonly AssemblyName serviceName = Assembly.GetExecutingAssembly().GetName();
 
     /// <summary>
-    /// The startup class.
+    /// Gets the MQTT service configuration.
     /// </summary>
-    public class Startup
+    private readonly MqttServiceConfiguration mqttServiceConfiguration = new();
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Startup"/> class.
+    /// </summary>
+    /// <param name="configuration">The configuration.</param>
+    public Startup(IConfiguration configuration)
     {
-        /// <summary>
-        /// The service name.
-        /// </summary>
-        private readonly AssemblyName serviceName = Assembly.GetExecutingAssembly().GetName();
+        configuration.GetSection(this.serviceName.Name).Bind(this.mqttServiceConfiguration);
+    }
 
-        /// <summary>
-        /// Gets the MQTT service configuration.
-        /// </summary>
-        private readonly MqttServiceConfiguration mqttServiceConfiguration = new();
+    /// <summary>
+    /// Configures the services.
+    /// </summary>
+    /// <param name="services">The services.</param>
+    public void ConfigureServices(IServiceCollection services)
+    {
+        services.AddOptions();
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Startup"/> class.
-        /// </summary>
-        /// <param name="configuration">The configuration.</param>
-        public Startup(IConfiguration configuration)
+        services.AddSingleton(this.mqttServiceConfiguration);
+
+        services.AddMvc().AddRazorPagesOptions(options => { options.RootDirectory = "/"; })
+            .AddDataAnnotationsLocalization();
+
+        // Workaround to have a hosted background service available by DI.
+        services.AddSingleton(_ => new MqttService(this.mqttServiceConfiguration, this.serviceName.Name ?? "MqttService"));
+        services.AddSingleton<IHostedService>(p => p.GetRequiredService<MqttService>());
+    }
+
+    /// <summary>
+    /// This method gets called by the runtime.
+    /// </summary>
+    /// <param name="app">The application.</param>
+    /// <param name="env">The web hosting environment.</param>
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    {
+        if (env.IsDevelopment())
         {
-            configuration.GetSection(this.serviceName.Name).Bind(this.mqttServiceConfiguration);
+            app.UseDeveloperExceptionPage();
         }
 
-        /// <summary>
-        /// Configures the services.
-        /// </summary>
-        /// <param name="services">The services.</param>
-        public void ConfigureServices(IServiceCollection services)
-        {
-            services.AddOptions();
+        app.UseSerilogRequestLogging();
+        app.UseRouting();
 
-            services.AddSingleton(this.mqttServiceConfiguration);
-
-            services.AddMvc().AddRazorPagesOptions(options => { options.RootDirectory = "/"; })
-                .AddDataAnnotationsLocalization();
-
-            // Workaround to have a hosted background service available by DI.
-            services.AddSingleton(_ => new MqttService(this.mqttServiceConfiguration, this.serviceName.Name ?? "MqttService"));
-            services.AddSingleton<IHostedService>(p => p.GetRequiredService<MqttService>());
-        }
-
-        /// <summary>
-        /// This method gets called by the runtime.
-        /// </summary>
-        /// <param name="app">The application.</param>
-        /// <param name="env">The web hosting environment.</param>
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
-        {
-            if (env.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-            }
-
-            app.UseSerilogRequestLogging();
-            app.UseRouting();
-
-            _ = app.ApplicationServices.GetService<MqttService>();
-        }
+        _ = app.ApplicationServices.GetService<MqttService>();
     }
 }
