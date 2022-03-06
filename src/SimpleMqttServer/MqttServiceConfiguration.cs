@@ -1,6 +1,6 @@
 // --------------------------------------------------------------------------------------------------------------------
 // <copyright file="MqttServiceConfiguration.cs" company="Hämmer Electronics">
-//   Copyright (c) 2020 All rights reserved.
+//   Copyright (c) All rights reserved.
 // </copyright>
 // <summary>
 //   The <see cref="MqttServiceConfiguration" /> read from the configuration file.
