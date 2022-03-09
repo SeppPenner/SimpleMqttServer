@@ -13,7 +13,7 @@ namespace SimpleMqttServer;
 /// <summary>
 ///     The main service class of the <see cref="MqttService" />.
 /// </summary>
-public class MqttService : BackgroundService
+public class MqttService : BackgroundService, IMqttServerSubscriptionInterceptor, IMqttServerApplicationMessageInterceptor, IMqttServerConnectionValidator
 {
     /// <summary>
     /// The logger.
@@ -86,6 +86,86 @@ public class MqttService : BackgroundService
     }
 
     /// <summary>
+    /// Validates the MQTT connection.
+    /// </summary>
+    /// <param name="context">The context.</param>
+    public Task ValidateConnectionAsync(MqttConnectionValidatorContext context)
+    {
+        try
+        {
+            var currentUser = this.MqttServiceConfiguration.Users.FirstOrDefault(u => u.UserName == context.Username);
+
+            if (currentUser == null)
+            {
+                context.ReasonCode = MqttConnectReasonCode.BadUserNameOrPassword;
+                this.LogMessage(context, true);
+                return Task.CompletedTask;
+            }
+
+            if (context.Username != currentUser.UserName)
+            {
+                context.ReasonCode = MqttConnectReasonCode.BadUserNameOrPassword;
+                this.LogMessage(context, true);
+                return Task.CompletedTask;
+            }
+
+            if (context.Password != currentUser.Password)
+            {
+                context.ReasonCode = MqttConnectReasonCode.BadUserNameOrPassword;
+                this.LogMessage(context, true);
+                return Task.CompletedTask;
+            }
+
+            context.ReasonCode = MqttConnectReasonCode.Success;
+            this.LogMessage(context, false);
+            return Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error("An error occurred: {Exception}.", ex);
+            return Task.FromException(ex);
+        }
+    }
+
+    /// <summary>
+    /// Validates the MQTT subscriptions.
+    /// </summary>
+    /// <param name="context">The context.</param>
+    public Task InterceptSubscriptionAsync(MqttSubscriptionInterceptorContext context)
+    {
+        try
+        {
+            context.AcceptSubscription = true;
+            this.LogMessage(context, true);
+            return Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error("An error occurred: {Exception}.", ex);
+            return Task.FromException(ex);
+        }
+    }
+
+    /// <summary>
+    /// Validates the MQTT application messages.
+    /// </summary>
+    /// <param name="context">The context.</param>
+    public Task InterceptApplicationMessagePublishAsync(MqttApplicationMessageInterceptorContext context)
+    {
+        try
+        {
+            context.AcceptPublish = true;
+            this.LogMessage(context);
+            return Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            this.logger.Error("An error occurred: {Exception}.", ex);
+            return Task.FromException(ex);
+        }
+    }
+
+    /// <summary>
     /// Starts the MQTT server.
     /// </summary>
     private void StartMqttServer()
@@ -94,45 +174,9 @@ public class MqttService : BackgroundService
             .WithDefaultEndpoint()
             .WithDefaultEndpointPort(this.MqttServiceConfiguration.Port)
             .WithEncryptedEndpointPort(this.MqttServiceConfiguration.TlsPort)
-            .WithConnectionValidator(
-                c =>
-                {
-                    var currentUser = this.MqttServiceConfiguration.Users.FirstOrDefault(u => u.UserName == c.Username);
-
-                    if (currentUser == null)
-                    {
-                        c.ReasonCode = MqttConnectReasonCode.BadUserNameOrPassword;
-                        this.LogMessage(c, true);
-                        return;
-                    }
-
-                    if (c.Username != currentUser.UserName)
-                    {
-                        c.ReasonCode = MqttConnectReasonCode.BadUserNameOrPassword;
-                        this.LogMessage(c, true);
-                        return;
-                    }
-
-                    if (c.Password != currentUser.Password)
-                    {
-                        c.ReasonCode = MqttConnectReasonCode.BadUserNameOrPassword;
-                        this.LogMessage(c, true);
-                        return;
-                    }
-
-                    c.ReasonCode = MqttConnectReasonCode.Success;
-                    this.LogMessage(c, false);
-                }).WithSubscriptionInterceptor(
-                c =>
-                {
-                    c.AcceptSubscription = true;
-                    this.LogMessage(c, true);
-                }).WithApplicationMessageInterceptor(
-                c =>
-                {
-                    c.AcceptPublish = true;
-                    this.LogMessage(c);
-                });
+            .WithConnectionValidator(this)
+            .WithSubscriptionInterceptor(this)
+            .WithApplicationMessageInterceptor(this);
 
         var mqttServer = new MqttFactory().CreateMqttServer();
         mqttServer.StartAsync(optionsBuilder.Build());
@@ -147,8 +191,8 @@ public class MqttService : BackgroundService
     {
         this.logger.Information(
             successful
-                ? "New subscription: ClientId = {clientId}, TopicFilter = {topicFilter}"
-                : "Subscription failed for clientId = {clientId}, TopicFilter = {topicFilter}",
+                ? "New subscription: ClientId = {ClientId}, TopicFilter = {TopicFilter}"
+                : "Subscription failed for clientId = {ClientId}, TopicFilter = {TopicFilter}",
             context.ClientId,
             context.TopicFilter);
     }
@@ -162,7 +206,7 @@ public class MqttService : BackgroundService
         var payload = context.ApplicationMessage?.Payload == null ? null : Encoding.UTF8.GetString(context.ApplicationMessage.Payload);
 
         this.logger.Information(
-            "Message: ClientId = {clientId}, Topic = {topic}, Payload = {payload}, QoS = {qos}, Retain-Flag = {retainFlag}",
+            "Message: ClientId = {ClientId}, Topic = {Topic}, Payload = {Payload}, QoS = {Qos}, Retain-Flag = {RetainFlag}",
             context.ClientId,
             context.ApplicationMessage?.Topic,
             payload,
@@ -180,7 +224,7 @@ public class MqttService : BackgroundService
         if (showPassword)
         {
             this.logger.Information(
-                "New connection: ClientId = {clientId}, Endpoint = {endpoint}, Username = {userName}, Password = {password}, CleanSession = {cleanSession}",
+                "New connection: ClientId = {ClientId}, Endpoint = {Endpoint}, Username = {UserName}, Password = {Password}, CleanSession = {CleanSession}",
                 context.ClientId,
                 context.Endpoint,
                 context.Username,
@@ -190,7 +234,7 @@ public class MqttService : BackgroundService
         else
         {
             this.logger.Information(
-                "New connection: ClientId = {clientId}, Endpoint = {endpoint}, Username = {userName}, CleanSession = {cleanSession}",
+                "New connection: ClientId = {ClientId}, Endpoint = {Endpoint}, Username = {UserName}, CleanSession = {CleanSession}",
                 context.ClientId,
                 context.Endpoint,
                 context.Username,
