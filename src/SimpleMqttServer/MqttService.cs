@@ -89,7 +89,7 @@ public class MqttService : BackgroundService
     /// Validates the MQTT connection.
     /// </summary>
     /// <param name="args">The arguments.</param>
-    public Task ValidateConnectionAsync(ValidatingConnectionEventArgs args)
+    private Task ValidateConnectionAsync(ValidatingConnectionEventArgs args)
     {
         try
         {
@@ -131,7 +131,7 @@ public class MqttService : BackgroundService
     /// Validates the MQTT subscriptions.
     /// </summary>
     /// <param name="args">The arguments.</param>
-    public Task InterceptSubscriptionAsync(InterceptingSubscriptionEventArgs args)
+    private Task InterceptSubscriptionAsync(InterceptingSubscriptionEventArgs args)
     {
         try
         {
@@ -150,7 +150,7 @@ public class MqttService : BackgroundService
     /// Validates the MQTT application messages.
     /// </summary>
     /// <param name="args">The arguments.</param>
-    public Task InterceptApplicationMessagePublishAsync(InterceptingPublishEventArgs args)
+    private Task InterceptApplicationMessagePublishAsync(InterceptingPublishEventArgs args)
     {
         try
         {
