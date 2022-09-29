@@ -43,8 +43,12 @@ public class MqttService : BackgroundService
     public MqttService(MqttServiceConfiguration mqttServiceConfiguration, string serviceName)
     {
         this.MqttServiceConfiguration = mqttServiceConfiguration;
-        this.logger = Log.ForContext("Type", nameof(MqttService));
         this.serviceName = serviceName;
+
+        // Create the logger.
+        this.logger = LoggerConfig.GetLoggerConfiguration(nameof(MqttService))
+            .WriteTo.Sink((ILogEventSink)Log.Logger)
+            .CreateLogger();
     }
 
     /// <inheritdoc cref="BackgroundService"/>
@@ -89,7 +93,7 @@ public class MqttService : BackgroundService
     /// Validates the MQTT connection.
     /// </summary>
     /// <param name="args">The arguments.</param>
-    private Task ValidateConnectionAsync(ValidatingConnectionEventArgs args)
+    public Task ValidateConnectionAsync(ValidatingConnectionEventArgs args)
     {
         try
         {
@@ -131,7 +135,7 @@ public class MqttService : BackgroundService
     /// Validates the MQTT subscriptions.
     /// </summary>
     /// <param name="args">The arguments.</param>
-    private Task InterceptSubscriptionAsync(InterceptingSubscriptionEventArgs args)
+    public Task InterceptSubscriptionAsync(InterceptingSubscriptionEventArgs args)
     {
         try
         {
@@ -150,7 +154,7 @@ public class MqttService : BackgroundService
     /// Validates the MQTT application messages.
     /// </summary>
     /// <param name="args">The arguments.</param>
-    private Task InterceptApplicationMessagePublishAsync(InterceptingPublishEventArgs args)
+    public Task InterceptApplicationMessagePublishAsync(InterceptingPublishEventArgs args)
     {
         try
         {
@@ -185,16 +189,18 @@ public class MqttService : BackgroundService
     /// <summary> 
     ///     Logs the message from the MQTT subscription interceptor context. 
     /// </summary> 
-    /// <param name="args">The arguments.</param> 
-    /// <param name="successful">A <see cref="bool"/> value indicating whether the subscription was successful or not.</param> 
+    /// <param name="args">The arguments.</param>
+    /// <param name="successful">A <see cref="bool"/> value indicating whether the subscription was successful or not.</param>
     private void LogMessage(InterceptingSubscriptionEventArgs args, bool successful)
     {
+#pragma warning disable Serilog004 // Constant MessageTemplate verifier
         this.logger.Information(
             successful
                 ? "New subscription: ClientId = {ClientId}, TopicFilter = {TopicFilter}"
                 : "Subscription failed for clientId = {ClientId}, TopicFilter = {TopicFilter}",
             args.ClientId,
             args.TopicFilter);
+#pragma warning restore Serilog004 // Constant MessageTemplate verifier
     }
 
     /// <summary>
@@ -203,7 +209,7 @@ public class MqttService : BackgroundService
     /// <param name="args">The arguments.</param>
     private void LogMessage(InterceptingPublishEventArgs args)
     {
-        var payload = args.ApplicationMessage?.Payload == null ? null : Encoding.UTF8.GetString(args.ApplicationMessage.Payload);
+        var payload = args.ApplicationMessage?.Payload is null ? null : Encoding.UTF8.GetString(args.ApplicationMessage.Payload);
 
         this.logger.Information(
             "Message: ClientId = {ClientId}, Topic = {Topic}, Payload = {Payload}, QoS = {Qos}, Retain-Flag = {RetainFlag}",
@@ -217,8 +223,8 @@ public class MqttService : BackgroundService
     /// <summary> 
     ///     Logs the message from the MQTT connection validation context. 
     /// </summary> 
-    /// <param name="args">The arguments.</param> 
-    /// <param name="showPassword">A <see cref="bool"/> value indicating whether the password is written to the log or not.</param> 
+    /// <param name="args">The arguments.</param>
+    /// <param name="showPassword">A <see cref="bool"/> value indicating whether the password is written to the log or not.</param>
     private void LogMessage(ValidatingConnectionEventArgs args, bool showPassword)
     {
         if (showPassword)

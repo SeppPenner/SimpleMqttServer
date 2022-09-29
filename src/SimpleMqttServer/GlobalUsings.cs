@@ -7,6 +7,7 @@ global using MQTTnet.Protocol;
 global using MQTTnet.Server;
 
 global using Serilog;
+global using Serilog.Core;
 global using Serilog.Events;
 global using Serilog.Exceptions;
 
