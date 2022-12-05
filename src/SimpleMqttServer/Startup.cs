@@ -30,7 +30,7 @@ public class Startup
     /// <param name="configuration">The configuration.</param>
     public Startup(IConfiguration configuration)
     {
-        configuration.GetSection(this.serviceName.Name).Bind(this.mqttServiceConfiguration);
+        configuration.GetSection(this.serviceName.Name ?? "SimpleMqttServer").Bind(this.mqttServiceConfiguration);
     }
 
     /// <summary>
@@ -47,7 +47,7 @@ public class Startup
             .AddDataAnnotationsLocalization();
 
         // Workaround to have a hosted background service available by DI.
-        services.AddSingleton(_ => new MqttService(this.mqttServiceConfiguration, this.serviceName.Name ?? "MqttService"));
+        services.AddSingleton(_ => new MqttService(this.mqttServiceConfiguration, this.serviceName.Name ?? "SimpleMqttServer"));
         services.AddSingleton<IHostedService>(p => p.GetRequiredService<MqttService>());
     }
 

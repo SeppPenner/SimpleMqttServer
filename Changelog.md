@@ -1,5 +1,6 @@
 # Change history
 
+* **Version 1.0.6.0 (2022-12-05)** : Updated nuget packages, moved to Net 7.0.
 * **Version 1.0.5.0 (2022-08-31)** : Updated NuGet packages, smaller changes.
 * **Version 1.0.4.0 (2022-02-17)** : Added nullable checks, added editorconfig, added file scoped namespaces, added global usings.
 * **Version 1.0.3.0 (2021-11-09)** : Switched to Net6.0, updated NuGet packages.

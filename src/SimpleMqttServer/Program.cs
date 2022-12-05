@@ -99,7 +99,7 @@ public class Program
         }
 
         config = configurationBuilder.Build();
-        config.Bind(ServiceName.Name, Configuration);
+        config.Bind(ServiceName.Name ?? "SimpleMqttServer", Configuration);
     }
 
     /// <summary>
