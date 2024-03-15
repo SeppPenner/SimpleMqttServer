@@ -31,6 +31,11 @@ public class MqttService : BackgroundService
     private static double BytesDivider => 1048576.0;
 
     /// <summary>
+    /// The client identifiers.
+    /// </summary>
+    private static readonly HashSet<string> clientIds = new();
+
+    /// <summary>
     /// Gets or sets the MQTT service configuration.
     /// </summary>
     public MqttServiceConfiguration MqttServiceConfiguration { get; set; }
@@ -97,9 +102,22 @@ public class MqttService : BackgroundService
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(args.UserName))
+            {
+                args.ReasonCode = MqttConnectReasonCode.BadUserNameOrPassword;
+                return Task.CompletedTask;
+            }
+
+            if (clientIds.TryGetValue(args.ClientId, out var _))
+            {
+                args.ReasonCode = MqttConnectReasonCode.ClientIdentifierNotValid;
+                this.logger.Warning("A client with client id {ClientId} is already connected", args.ClientId);
+                return Task.CompletedTask;
+            }
+
             var currentUser = this.MqttServiceConfiguration.Users.FirstOrDefault(u => u.UserName == args.UserName);
 
-            if (currentUser == null)
+            if (currentUser is null)
             {
                 args.ReasonCode = MqttConnectReasonCode.BadUserNameOrPassword;
                 this.LogMessage(args, true);
@@ -170,6 +188,16 @@ public class MqttService : BackgroundService
     }
 
     /// <summary>
+    /// Handles the client connected event.
+    /// </summary>
+    /// <param name="args">The arguments.</param>
+    private async Task ClientDisconnectedAsync(ClientDisconnectedEventArgs args)
+    {
+        clientIds.Remove(args.ClientId);
+        await Task.Delay(1);
+    }
+
+    /// <summary>
     /// Starts the MQTT server.
     /// </summary>
     private void StartMqttServer()
@@ -183,6 +211,7 @@ public class MqttService : BackgroundService
         mqttServer.ValidatingConnectionAsync += this.ValidateConnectionAsync;
         mqttServer.InterceptingSubscriptionAsync += this.InterceptSubscriptionAsync;
         mqttServer.InterceptingPublishAsync += this.InterceptApplicationMessagePublishAsync;
+        mqttServer.ClientDisconnectedAsync += this.ClientDisconnectedAsync;
         mqttServer.StartAsync();
     }
 
