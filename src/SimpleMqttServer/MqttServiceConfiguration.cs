@@ -22,7 +22,7 @@ public class MqttServiceConfiguration
     /// <summary>
     ///     Gets or sets the list of valid users.
     /// </summary>
-    public List<User> Users { get; set; } = new();
+    public List<User> Users { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the heartbeat delay in milliseconds.

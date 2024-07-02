@@ -33,7 +33,7 @@ public class MqttService : BackgroundService
     /// <summary>
     /// The client identifiers.
     /// </summary>
-    private static readonly HashSet<string> clientIds = new();
+    private static readonly HashSet<string> clientIds = [];
 
     /// <summary>
     /// Gets or sets the MQTT service configuration.
