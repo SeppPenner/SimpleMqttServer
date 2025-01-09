@@ -207,7 +207,7 @@ public class MqttService : BackgroundService
             .WithDefaultEndpointPort(this.MqttServiceConfiguration.Port)
             .WithEncryptedEndpointPort(this.MqttServiceConfiguration.TlsPort);
 
-        var mqttServer = new MqttFactory().CreateMqttServer(optionsBuilder.Build());
+        var mqttServer = new MqttServerFactory().CreateMqttServer(optionsBuilder.Build());
         mqttServer.ValidatingConnectionAsync += this.ValidateConnectionAsync;
         mqttServer.InterceptingSubscriptionAsync += this.InterceptSubscriptionAsync;
         mqttServer.InterceptingPublishAsync += this.InterceptApplicationMessagePublishAsync;
@@ -238,7 +238,7 @@ public class MqttService : BackgroundService
     /// <param name="args">The arguments.</param>
     private void LogMessage(InterceptingPublishEventArgs args)
     {
-        var payload = args.ApplicationMessage?.PayloadSegment is null ? null : Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment);
+        var payload = Encoding.UTF8.GetString(args.ApplicationMessage.Payload);
 
         this.logger.Information(
             "Message: ClientId = {ClientId}, Topic = {Topic}, Payload = {Payload}, QoS = {Qos}, Retain-Flag = {RetainFlag}",
@@ -259,9 +259,9 @@ public class MqttService : BackgroundService
         if (showPassword)
         {
             this.logger.Information(
-                "New connection: ClientId = {ClientId}, Endpoint = {Endpoint}, Username = {UserName}, Password = {Password}, CleanSession = {CleanSession}",
+                "New connection: ClientId = {ClientId}, Endpoint = {@Endpoint}, Username = {UserName}, Password = {Password}, CleanSession = {CleanSession}",
                 args.ClientId,
-                args.Endpoint,
+                args.RemoteEndPoint,
                 args.UserName,
                 args.Password,
                 args.CleanSession);
@@ -269,9 +269,9 @@ public class MqttService : BackgroundService
         else
         {
             this.logger.Information(
-                "New connection: ClientId = {ClientId}, Endpoint = {Endpoint}, Username = {UserName}, CleanSession = {CleanSession}",
+                "New connection: ClientId = {ClientId}, Endpoint = {@Endpoint}, Username = {UserName}, CleanSession = {CleanSession}",
                 args.ClientId,
-                args.Endpoint,
+                args.RemoteEndPoint,
                 args.UserName,
                 args.CleanSession);
         }

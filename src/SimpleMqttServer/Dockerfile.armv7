@@ -1,4 +1,4 @@
-FROM --platform=linux/arm/v7 mcr.microsoft.com/dotnet/aspnet:7.0 AS base
+FROM --platform=linux/arm/v7 mcr.microsoft.com/dotnet/aspnet:9.0 AS base
 WORKDIR /app
 COPY publish .
 

@@ -1,7 +1,7 @@
 cd src\SimpleMqttServer
 dotnet publish -c Release --output publish/ -r linux-x64 --no-self-contained
-docker build --tag sepppenner/simplemqttserver:1.0.7 -f Dockerfile .
+docker build --tag sepppenner/simplemqttserver:1.0.8 -f Dockerfile .
 docker login -u sepppenner -p "%DOCKERHUB_CLI_TOKEN%"
-docker push sepppenner/simplemqttserver:1.0.7
+docker push sepppenner/simplemqttserver:1.0.8
 @ECHO.Build successful. Press any key to exit.
 pause

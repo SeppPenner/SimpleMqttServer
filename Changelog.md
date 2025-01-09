@@ -1,5 +1,6 @@
 # Change history
 
+* **Version 1.0.8.0 (2025-01-09)** : Updated Nuget packages, added audit mode, moved to Net9.0.
 * **Version 1.0.7.0 (2024-01-04)** : Updated nuget packages, moved to Net 8.0.
 * **Version 1.0.6.0 (2022-12-05)** : Updated nuget packages, moved to Net 7.0.
 * **Version 1.0.5.0 (2022-08-31)** : Updated NuGet packages, smaller changes.
