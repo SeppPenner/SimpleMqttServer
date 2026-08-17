@@ -55,7 +55,7 @@ There are no tests, so there is nothing to run with `dotnet test`. A behaviour c
 starting the built binary and looking at the log, and by connecting an MQTT client against
 `localhost:1883` with the configured user.
 
-- Single target framework `net9.0`, no multi-targeting, no `RuntimeIdentifiers` in the project file.
+- Single target framework `net10.0`, no multi-targeting, no `RuntimeIdentifiers` in the project file.
   The runtime identifier is passed on the command line by the build scripts (`linux-x64`,
   `linux-arm`, `win-x64`).
 - All build properties live directly in `src/SimpleMqttServer/SimpleMqttServer.csproj`. There is
@@ -165,8 +165,8 @@ Do not silently "clean up" these, they are existing behaviour:
 6. Only now build the artifacts, because GitVersion takes the version from the tag. An untagged
    commit produces something like `1.0.9-1+Branch.master.Sha...` and burns that into the binary.
    - `buildForWindows.bat`, then zip `src/SimpleMqttServer/publish` into
-     `Published/<four part version>/publish.zip`. The zip contains the `publish` folder itself, not
-     its contents at the root.
+     `Published/<three part version>/publish.zip`, so `Published/1.0.9/publish.zip`. The zip
+     contains the `publish` folder itself, not its contents at the root, and it keeps the `.pdb`.
    - `buildAndUploadDocker.bat` and `buildAndUploadDockerForArm.bat` for the two images.
 7. Commit the zip on its own, the existing commits for this are called `Updated setup.`.
 8. Push the commits and the tag.

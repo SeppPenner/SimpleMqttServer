@@ -103,6 +103,10 @@ public class MqttService : BackgroundService
                 this.LogMemoryInformation();
                 await Task.Delay(this.MqttServiceConfiguration.DelayInMilliSeconds, cancellationToken);
             }
+            catch (OperationCanceledException)
+            {
+                // The service is shutting down, the cancelled delay is expected and not an error.
+            }
             catch (Exception ex)
             {
                 this.logger.Error("An error occurred: {Exception}", ex);
