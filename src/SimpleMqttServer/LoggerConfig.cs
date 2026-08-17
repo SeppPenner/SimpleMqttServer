@@ -24,7 +24,7 @@ public static class LoggerConfig
     {
         if (string.IsNullOrWhiteSpace(type))
         {
-            throw new ArgumentException(nameof(type), "The type of logger must be given.");
+            throw new ArgumentException("The type of logger must be given.", nameof(type));
         }
 
         // set up logging for data frame output

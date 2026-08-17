@@ -72,7 +72,7 @@ public class Program
     private static IHostBuilder CreateHostBuilder(string[] args, string currentLocation) =>
         Host.CreateDefaultBuilder(args).ConfigureWebHostDefaults(
                 webBuilder =>
-                {;
+                {
                     webBuilder.UseContentRoot(currentLocation);
                     webBuilder.UseStartup<Startup>();
                 })

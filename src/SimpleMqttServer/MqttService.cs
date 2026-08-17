@@ -31,9 +31,15 @@ public class MqttService : BackgroundService
     private static double BytesDivider => 1048576.0;
 
     /// <summary>
-    /// The client identifiers.
+    /// The client identifiers of the currently connected clients. A concurrent collection because
+    /// the MQTT server raises its connect and disconnect events from different threads.
     /// </summary>
-    private static readonly HashSet<string> clientIds = [];
+    private readonly ConcurrentDictionary<string, byte> clientIds = new();
+
+    /// <summary>
+    /// The MQTT server. Null until the service is started and again after it is stopped.
+    /// </summary>
+    private MqttServer? mqttServer;
 
     /// <summary>
     /// Gets or sets the MQTT service configuration.
@@ -65,7 +71,7 @@ public class MqttService : BackgroundService
         }
 
         this.logger.Information("Starting service");
-        this.StartMqttServer();
+        await this.StartMqttServerAsync();
         this.logger.Information("Service started");
         await base.StartAsync(cancellationToken);
     }
@@ -74,6 +80,16 @@ public class MqttService : BackgroundService
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
         await base.StopAsync(cancellationToken);
+
+        if (this.mqttServer is not null)
+        {
+            await this.mqttServer.StopAsync();
+            this.mqttServer.Dispose();
+            this.mqttServer = null;
+        }
+
+        this.clientIds.Clear();
+        this.logger.Information("Service stopped");
     }
 
     /// <inheritdoc cref="BackgroundService"/>
@@ -108,13 +124,6 @@ public class MqttService : BackgroundService
                 return Task.CompletedTask;
             }
 
-            if (clientIds.TryGetValue(args.ClientId, out var _))
-            {
-                args.ReasonCode = MqttConnectReasonCode.ClientIdentifierNotValid;
-                this.logger.Warning("A client with client id {ClientId} is already connected", args.ClientId);
-                return Task.CompletedTask;
-            }
-
             var currentUser = this.MqttServiceConfiguration.Users.FirstOrDefault(u => u.UserName == args.UserName);
 
             if (currentUser is null)
@@ -138,6 +147,16 @@ public class MqttService : BackgroundService
                 return Task.CompletedTask;
             }
 
+            // Registering the client identifier is the check for a duplicate one at the same time.
+            // Doing both in one step keeps two clients with the same identifier from passing here
+            // at once, and it only happens for a client that authenticated successfully.
+            if (!this.clientIds.TryAdd(args.ClientId, 0))
+            {
+                args.ReasonCode = MqttConnectReasonCode.ClientIdentifierNotValid;
+                this.logger.Warning("A client with client id {ClientId} is already connected", args.ClientId);
+                return Task.CompletedTask;
+            }
+
             args.ReasonCode = MqttConnectReasonCode.Success;
             this.LogMessage(args, false);
             return Task.CompletedTask;
@@ -158,7 +177,7 @@ public class MqttService : BackgroundService
         try
         {
             args.ProcessSubscription = true;
-            this.LogMessage(args, true);
+            this.LogMessage(args);
             return Task.CompletedTask;
         }
         catch (Exception ex)
@@ -188,48 +207,45 @@ public class MqttService : BackgroundService
     }
 
     /// <summary>
-    /// Handles the client connected event.
+    /// Handles the client disconnected event.
     /// </summary>
     /// <param name="args">The arguments.</param>
-    private async Task ClientDisconnectedAsync(ClientDisconnectedEventArgs args)
+    private Task ClientDisconnectedAsync(ClientDisconnectedEventArgs args)
     {
-        clientIds.Remove(args.ClientId);
-        await Task.Delay(1);
+        this.clientIds.TryRemove(args.ClientId, out _);
+        this.logger.Information("Client disconnected: ClientId = {ClientId}", args.ClientId);
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Starts the MQTT server.
     /// </summary>
-    private void StartMqttServer()
+    /// <returns>A <see cref="Task"/> representing any asynchronous operation.</returns>
+    private async Task StartMqttServerAsync()
     {
         var optionsBuilder = new MqttServerOptionsBuilder()
             .WithDefaultEndpoint()
             .WithDefaultEndpointPort(this.MqttServiceConfiguration.Port)
             .WithEncryptedEndpointPort(this.MqttServiceConfiguration.TlsPort);
 
-        var mqttServer = new MqttServerFactory().CreateMqttServer(optionsBuilder.Build());
-        mqttServer.ValidatingConnectionAsync += this.ValidateConnectionAsync;
-        mqttServer.InterceptingSubscriptionAsync += this.InterceptSubscriptionAsync;
-        mqttServer.InterceptingPublishAsync += this.InterceptApplicationMessagePublishAsync;
-        mqttServer.ClientDisconnectedAsync += this.ClientDisconnectedAsync;
-        mqttServer.StartAsync();
+        this.mqttServer = new MqttServerFactory().CreateMqttServer(optionsBuilder.Build());
+        this.mqttServer.ValidatingConnectionAsync += this.ValidateConnectionAsync;
+        this.mqttServer.InterceptingSubscriptionAsync += this.InterceptSubscriptionAsync;
+        this.mqttServer.InterceptingPublishAsync += this.InterceptApplicationMessagePublishAsync;
+        this.mqttServer.ClientDisconnectedAsync += this.ClientDisconnectedAsync;
+        await this.mqttServer.StartAsync();
     }
 
     /// <summary> 
     ///     Logs the message from the MQTT subscription interceptor context. 
     /// </summary> 
     /// <param name="args">The arguments.</param>
-    /// <param name="successful">A <see cref="bool"/> value indicating whether the subscription was successful or not.</param>
-    private void LogMessage(InterceptingSubscriptionEventArgs args, bool successful)
+    private void LogMessage(InterceptingSubscriptionEventArgs args)
     {
-#pragma warning disable Serilog004 // Constant MessageTemplate verifier
         this.logger.Information(
-            successful
-                ? "New subscription: ClientId = {ClientId}, TopicFilter = {TopicFilter}"
-                : "Subscription failed for clientId = {ClientId}, TopicFilter = {TopicFilter}",
+            "New subscription: ClientId = {ClientId}, TopicFilter = {TopicFilter}",
             args.ClientId,
             args.TopicFilter);
-#pragma warning restore Serilog004 // Constant MessageTemplate verifier
     }
 
     /// <summary>
