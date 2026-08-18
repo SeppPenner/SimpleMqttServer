@@ -42,6 +42,11 @@ public class MqttService : BackgroundService
     private MqttServer? mqttServer;
 
     /// <summary>
+    /// The certificate of the encrypted endpoint. Null when no certificate is configured.
+    /// </summary>
+    private X509Certificate2? certificate;
+
+    /// <summary>
     /// Gets or sets the MQTT service configuration.
     /// </summary>
     public MqttServiceConfiguration MqttServiceConfiguration { get; set; }
@@ -87,6 +92,9 @@ public class MqttService : BackgroundService
             this.mqttServer.Dispose();
             this.mqttServer = null;
         }
+
+        this.certificate?.Dispose();
+        this.certificate = null;
 
         this.clientIds.Clear();
         this.logger.Information("Service stopped");
@@ -229,8 +237,30 @@ public class MqttService : BackgroundService
     {
         var optionsBuilder = new MqttServerOptionsBuilder()
             .WithDefaultEndpoint()
-            .WithDefaultEndpointPort(this.MqttServiceConfiguration.Port)
-            .WithEncryptedEndpointPort(this.MqttServiceConfiguration.TlsPort);
+            .WithDefaultEndpointPort(this.MqttServiceConfiguration.Port);
+
+        if (this.MqttServiceConfiguration.UseTls)
+        {
+            this.certificate = LoadCertificate(this.MqttServiceConfiguration);
+
+            optionsBuilder
+                .WithEncryptedEndpoint()
+                .WithEncryptedEndpointPort(this.MqttServiceConfiguration.TlsPort)
+                .WithEncryptionCertificate(this.certificate)
+                .WithEncryptionSslProtocol(SslProtocols.Tls12 | SslProtocols.Tls13);
+
+            this.logger.Information(
+                "Encrypted endpoint on port {TlsPort} with certificate {Subject}, valid until {NotAfter}",
+                this.MqttServiceConfiguration.TlsPort,
+                this.certificate.Subject,
+                this.certificate.NotAfter);
+        }
+        else
+        {
+            this.logger.Information(
+                "No certificate configured, listening on port {Port} without encryption only",
+                this.MqttServiceConfiguration.Port);
+        }
 
         this.mqttServer = new MqttServerFactory().CreateMqttServer(optionsBuilder.Build());
         this.mqttServer.ValidatingConnectionAsync += this.ValidateConnectionAsync;
@@ -238,6 +268,33 @@ public class MqttService : BackgroundService
         this.mqttServer.InterceptingPublishAsync += this.InterceptApplicationMessagePublishAsync;
         this.mqttServer.ClientDisconnectedAsync += this.ClientDisconnectedAsync;
         await this.mqttServer.StartAsync();
+    }
+
+    /// <summary>
+    /// Loads the certificate for the encrypted endpoint, PKCS#12 by default and PEM as soon as a
+    /// separate key file is configured.
+    /// </summary>
+    /// <param name="configuration">The MQTT service configuration.</param>
+    /// <returns>The <see cref="X509Certificate2"/> for the encrypted endpoint.</returns>
+    private static X509Certificate2 LoadCertificate(MqttServiceConfiguration configuration)
+    {
+        if (string.IsNullOrWhiteSpace(configuration.CertificateKeyPath))
+        {
+            return X509CertificateLoader.LoadPkcs12FromFile(
+                configuration.CertificatePath,
+                string.IsNullOrWhiteSpace(configuration.CertificatePassword)
+                    ? null
+                    : configuration.CertificatePassword);
+        }
+
+        using var pemCertificate = X509Certificate2.CreateFromPemFile(
+            configuration.CertificatePath,
+            configuration.CertificateKeyPath);
+
+        // The key of a certificate read from PEM files is not in a form that Windows accepts for a
+        // TLS server. Exporting to PKCS#12 and loading that back turns it into a usable key, and it
+        // costs nothing on the platforms that would have accepted it directly.
+        return X509CertificateLoader.LoadPkcs12(pemCertificate.Export(X509ContentType.Pkcs12), null);
     }
 
     /// <summary> 

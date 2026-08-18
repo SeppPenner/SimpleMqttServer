@@ -30,8 +30,9 @@ Layout inside `src/SimpleMqttServer`:
   MQTTnet events (`ValidatingConnectionAsync`, `InterceptingSubscriptionAsync`,
   `InterceptingPublishAsync`, `ClientDisconnectedAsync`) and logs a heartbeat with memory
   information every `DelayInMilliSeconds`.
-- `MqttServiceConfiguration.cs`: the configuration type, `Port`, `TlsPort`, `DelayInMilliSeconds`
-  and the list of `Users`, each with defaults. `User.cs`: user name and password, both plain text.
+- `MqttServiceConfiguration.cs`: the configuration type, `Port`, `TlsPort`, `DelayInMilliSeconds`,
+  the list of `Users` and the three certificate keys, each with defaults. `User.cs`: user name and
+  password, both plain text.
 - `LoggerConfig.cs`: builds the per-component `LoggerConfiguration` that `MqttService` writes into.
 - `GlobalUsings.cs`: all usings of the project, including the alias `ILogger`.
 - `appsettings.json` and `appsettings.Development.json`: the shipped example configuration with the
@@ -55,7 +56,12 @@ dotnet build src/SimpleMqttServer.sln -c Release
 
 There are no tests, so there is nothing to run with `dotnet test`. A behaviour change is verified by
 starting the built binary and looking at the log, and by connecting an MQTT client against
-`localhost:1883` with the configured user.
+`localhost:1883` with the configured user. For anything touching the connection validation or the
+endpoints that means a throwaway console project that references this one, creates its own self
+signed certificate and drives `MqttService.StartAsync` and `StopAsync` directly: that is how the
+duplicate client identifier check, the release of the identifier on disconnect, the stopped listener
+after `StopAsync` and both certificate formats were verified. Do not claim any of that from reading
+the code.
 
 - Single target framework `net10.0`, no multi-targeting, no `RuntimeIdentifiers` in the project file.
   The runtime identifier is passed on the command line by the build scripts (`linux-x64`,
@@ -103,12 +109,19 @@ Follow the surrounding code, it is consistent throughout every file:
 
 Do not silently "clean up" these, they are existing behaviour:
 
-- **The TLS port is configured but TLS is never enabled.** `StartMqttServer` calls
-  `WithEncryptedEndpointPort(this.MqttServiceConfiguration.TlsPort)` without
-  `WithEncryptedEndpoint()` and without a certificate, and MQTTnet only opens the encrypted endpoint
-  when it is explicitly enabled. The server therefore listens on `Port` only, while `appsettings.json`,
-  `HowToUse.md` and the `docker run` sample all mention 8883. Enabling it would need a certificate
-  and a configuration option for it.
+- **`TlsPort` on its own does nothing, the certificate is the switch.** The encrypted endpoint is
+  only built when `CertificatePath` is set, `UseTls` is exactly that check. Without a certificate the
+  server listens on `Port` only, which is what every version up to 1.0.9 did, and `TlsPort` keeps
+  sitting in the configuration without an effect. `WithEncryptedEndpointPort` alone would not have
+  been enough either, MQTTnet needs `WithEncryptedEndpoint()` and a certificate with a private key.
+  That was the bug up to 1.0.9: the port was passed, the endpoint never opened, and README and
+  HowToUse promised 8883 anyway.
+- **Loading the certificate has two paths and a Windows detour.** `CertificateKeyPath` empty means
+  PKCS#12 via `X509CertificateLoader.LoadPkcs12FromFile`, set means a PEM pair via
+  `X509Certificate2.CreateFromPemFile`. `new X509Certificate2(path, password)` is obsolete in .NET 10
+  (`SYSLIB0057`) and would break the build, do not go back to it. The PEM certificate is exported to
+  PKCS#12 and loaded again on purpose: its key is otherwise not in a form that Windows accepts for a
+  TLS server. Both paths are covered by the probe described under Build.
 - **`IsValid` never returns `false`.** `MqttServiceConfiguration.IsValid` returns `bool`, but every
   failing branch throws an `Exception` instead of returning `false`. The `if (!IsValid())` in
   `MqttService.StartAsync` and the `throw` inside it are therefore unreachable. The caller behaves

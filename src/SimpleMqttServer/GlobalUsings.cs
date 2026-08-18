@@ -1,6 +1,8 @@
 #pragma warning disable IDE0065 // Die using-Anweisung wurde falsch platziert.
 global using System.Collections.Concurrent;
 global using System.Reflection;
+global using System.Security.Authentication;
+global using System.Security.Cryptography.X509Certificates;
 global using System.Text;
 
 global using MQTTnet;
