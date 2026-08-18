@@ -1,7 +1,10 @@
+@ECHO OFF
 cd src\SimpleMqttServer
+@ECHO.Publishing for linux-x64...
+@RD /S /Q publish 2>NUL
 dotnet publish -c Release --output publish/ -r linux-x64 --no-self-contained
-docker build --tag sepppenner/simplemqttserver:1.0.9 -f Dockerfile .
-docker login -u sepppenner -p "%DOCKERHUB_CLI_TOKEN%"
+docker build --platform linux/amd64 --tag sepppenner/simplemqttserver:1.0.9 -f Dockerfile .
+@ECHO %DOCKERHUB_CLI_TOKEN%| docker login -u sepppenner --password-stdin
 docker push sepppenner/simplemqttserver:1.0.9
 @ECHO.Build successful. Press any key to exit.
 pause

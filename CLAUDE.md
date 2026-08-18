@@ -9,7 +9,8 @@ around it: read `appsettings.json`, validate user name and password on connect, 
 client identifiers, log every connection, subscription and published message through Serilog, and
 run as a Windows service or a systemd unit. It is **not** published as a NuGet package. The
 delivered artifacts are the Docker images `sepppenner/simplemqttserver` and
-`sepppenner/simplemqttserver-arm` plus a zipped Windows publish per release under `Published/`.
+`sepppenner/simplemqttserver-arm` plus a zipped Windows publish attached to the GitHub release of
+the matching tag.
 
 One solution `src/SimpleMqttServer.sln` with exactly one project:
 
@@ -41,7 +42,8 @@ Layout inside `src/SimpleMqttServer`:
 Repository root: `README.md` (badges and links), `HowToUse.md` (the only real user documentation,
 JSON sample and the whole Docker walkthrough), `Changelog.md`, `License.txt` (MIT), the three build
 scripts `buildAndUploadDocker.bat`, `buildAndUploadDockerForArm.bat` and `buildForWindows.bat`,
-`Published/<version>/publish.zip` per release, `.gitattributes` and `.gitignore`. Code conventions
+`Published/<version>/publish.zip` for the releases up to 1.0.8, `.gitattributes` and `.gitignore`.
+Code conventions
 live in `src/.editorconfig`, there is no `.editorconfig` in the root. There is no `Updating.md` and
 no screenshots.
 
@@ -136,12 +138,24 @@ Do not silently "clean up" these, they are existing behaviour:
   `COPY publish .`, so `dotnet publish` has to run first. That is what the two
   `buildAndUploadDocker*.bat` scripts do. Building the image from a clean checkout fails.
 - **The image version lives in the batch files.** `buildAndUploadDocker.bat` and
-  `buildAndUploadDockerForArm.bat` contain the image tag as a literal (`:1.0.8`) in two places
-  each, the build and the push. Bumping a release means editing both files. The scripts also expect
-  `DOCKERHUB_CLI_TOKEN` in the environment.
-- **`Published/` grows with every release.** Every version keeps its own `publish.zip` of the
-  framework dependent `win-x64` publish, including the `.pdb`, roughly 800 KB per release, forever
-  in the git history.
+  `buildAndUploadDockerForArm.bat` contain the image tag as a literal in two places each, the build
+  and the push. Bumping a release means editing both files. The scripts also expect
+  `DOCKERHUB_CLI_TOKEN` in the environment and log in with `--password-stdin`, so the token never
+  reaches a command line or the console. Do not remove the `@ECHO OFF` in the first line, without it
+  cmd echoes the login line with the token expanded.
+- **The ARM build needs `--platform linux/arm/v7` on the command line.** The `--platform` in the
+  `FROM` of `Dockerfile.armv7` alone is not enough. BuildKit writes the platform of the *build
+  request* into the manifest index, so without the flag the pushed index claims `linux/amd64` while
+  the image config says `arm/v7`, and `docker pull` on an armv7 device finds no matching manifest.
+  The image itself is fine either way, only the index entry lies.
+- **The scripts delete `publish` before publishing.** `dotnet publish --output publish/` does not
+  clean, so without the `RD /S /Q` the output of the previous runtime identifier stays in the folder
+  and ends up in the image. A `win-x64` publish followed by a `linux-x64` one used to put
+  `SimpleMqttServer.exe` and `web.config` into the Linux image.
+- **`Published/` holds the releases up to 1.0.8 only.** Those versions keep their own `publish.zip`
+  of the framework dependent `win-x64` publish in the repository, including the `.pdb`, roughly
+  800 KB each, forever in the git history. From 1.0.9 on the zip is a release asset instead, see
+  Releasing. The old folders stay where they are, deleting them would not shrink the history.
 - **AppVeyor badge without CI in the repository.** `README.md` links an AppVeyor build that is
   configured outside of this repository. `.github/workflows` exists in the working tree but is empty
   and untracked, there is no pipeline file here.
@@ -160,20 +174,25 @@ Do not silently "clean up" these, they are existing behaviour:
 3. Bump the image tag in `buildAndUploadDocker.bat` and `buildAndUploadDockerForArm.bat`, two
    occurrences each.
 4. Commit that.
-5. Tag the commit with the plain version number, no `v` prefix (`1.0.8`, `1.0.7`, ...). The existing
+5. Tag the commit with the plain version number, no `v` prefix (`1.0.9`, `1.0.8`, ...). The existing
    tags are lightweight tags, create new ones the same way.
-6. Only now build the artifacts, because GitVersion takes the version from the tag. An untagged
-   commit produces something like `1.0.9-1+Branch.master.Sha...` and burns that into the binary.
-   - `buildForWindows.bat`, then zip `src/SimpleMqttServer/publish` into
-     `Published/<three part version>/publish.zip`, so `Published/1.0.9/publish.zip`. The zip
+6. Push the commit and the tag.
+7. Only now build the artifacts, because GitVersion takes the version from the tag. An untagged
+   commit produces something like `1.0.10-1+Branch.master.Sha...` and burns that into the binary.
+   - `buildForWindows.bat`, then zip `src/SimpleMqttServer/publish` into a `publish.zip`. The zip
      contains the `publish` folder itself, not its contents at the root, and it keeps the `.pdb`.
    - `buildAndUploadDocker.bat` and `buildAndUploadDockerForArm.bat` for the two images.
-7. Commit the zip on its own, the existing commits for this are called `Updated setup.`.
-8. Push the commits and the tag.
+8. Create the GitHub release for the tag and attach that `publish.zip` to it. **The zip does not go
+   into the repository any more.** With the `gh` CLI that is `gh release create 1.0.9 publish.zip`,
+   otherwise `POST /repos/SeppPenner/SimpleMqttServer/releases` and then the upload to
+   `uploads.github.com`. The token for that comes from the Windows credential manager, the same
+   one `git push` uses: pipe a `protocol=https` and `host=github.com` block into
+   `git credential fill` and read the `password=` line. The release body names the changelog
+   line and the two image tags.
 
 The version in the `Changelog.md` has four parts (`1.0.9.0`), the tag and the Docker image tag have
 three (`1.0.9`). There is no installer to build and no package to push, so the release ends with the
-push.
+uploaded asset. Nothing is committed after the tag any more, the tagged commit is the release.
 
 ## Git
 
